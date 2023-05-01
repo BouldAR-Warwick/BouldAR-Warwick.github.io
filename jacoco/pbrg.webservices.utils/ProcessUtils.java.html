@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProcessUtils.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">webservices</a> &gt; <a href="index.source.html" class="el_package">pbrg.webservices.utils</a> &gt; <span class="el_source">ProcessUtils.java</span></div><h1>ProcessUtils.java</h1><pre class="source lang-java linenums">package pbrg.webservices.utils;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
+import java.util.ArrayList;
+import java.util.List;
+import org.jetbrains.annotations.NotNull;
+
+public final class ProcessUtils {
+
+    /** Static class, no need to instantiate. */
+<span class="fc" id="L14">    private ProcessUtils() {</span>
+<span class="fc" id="L15">        throw new IllegalStateException(&quot;Utility class&quot;);</span>
+    }
+
+    /**
+     * Run the process builder command.
+     * @param command The command to run
+     */
+    public static void runProcessBuilder(
+        final ProcessBuilder command
+    ) {
+<span class="fc" id="L25">        runProcessBuilder(command, false);</span>
+<span class="fc" id="L26">    }</span>
+
+    /**
+     * Run the process builder command.
+     * @param command The command to run
+     * @param collectOutput Whether to collect the output of the command
+     * @return The output of the command
+     */
+    public static List&lt;String&gt; runProcessBuilder(
+        final @NotNull ProcessBuilder command,
+        final boolean collectOutput
+    ) {
+<span class="fc" id="L38">        List&lt;String&gt; output = null;</span>
+        try {
+<span class="fc" id="L40">            Process process = command.start();</span>
+<span class="fc bfc" id="L41" title="All 2 branches covered.">            if (collectOutput) {</span>
+<span class="fc" id="L42">                output = collectOutputAsList(process);</span>
+            }
+<span class="fc" id="L44">            int exitCode = process.waitFor();</span>
+<span class="fc" id="L45">            process.destroy();</span>
+<span class="fc bfc" id="L46" title="All 2 branches covered.">            if (exitCode != 0) {</span>
+<span class="fc" id="L47">                throw new InterruptedException(</span>
+                    &quot;Command failed (non-zero exit code)&quot;
+                );
+            }
+<span class="fc" id="L51">            return output;</span>
+<span class="fc" id="L52">        } catch (IOException | InterruptedException e) {</span>
+<span class="fc" id="L53">            Thread.currentThread().interrupt();</span>
+<span class="fc" id="L54">            throw new RuntimeException(e);</span>
+        }
+    }
+
+    /**
+     * Run a process, throwing a RuntimeException if the process fails.
+     * @param pb process builder
+     * @return process
+     */
+    static Process runProcessEnsureSuccess(@NotNull final ProcessBuilder pb) {
+        // read the output printed by the python script
+        Process process;
+        try {
+<span class="fc" id="L67">            process = pb.start();</span>
+<span class="fc" id="L68">        } catch (IOException e) {</span>
+<span class="fc" id="L69">            throw new UncheckedIOException(e);</span>
+<span class="fc" id="L70">        }</span>
+        // ensure success
+<span class="fc" id="L72">        int exitCode = getExitCode(process);</span>
+<span class="fc bfc" id="L73" title="All 2 branches covered.">        if (exitCode != 0) {</span>
+<span class="fc" id="L74">            throw new RuntimeException(</span>
+                &quot;Route thumbnail generation failed with exit code &quot; + exitCode
+            );
+        }
+<span class="fc" id="L78">        return process;</span>
+    }
+
+    /**
+     * Run a process, ensure success, and return output as a StringBuilder.
+     * @param pb process builder
+     * @return output as a string builder, each line is a new line
+     */
+    static StringBuilder runProcessGetOutputEnsureSuccess(
+        @NotNull final ProcessBuilder pb
+    ) throws IOException {
+<span class="fc" id="L89">        Process process = runProcessEnsureSuccess(pb);</span>
+<span class="fc" id="L90">        return collectOutput(process);</span>
+    }
+
+    /**
+     * Collect output from a process.
+     * @param process process
+     * @return output as a string builder, each line is a new line
+     */
+    static @NotNull StringBuilder collectOutput(
+        @NotNull final Process process
+    ) throws IOException {
+<span class="fc" id="L101">        StringBuilder output = new StringBuilder();</span>
+<span class="fc bfc" id="L102" title="All 2 branches covered.">        for (String line : collectOutputAsList(process)) {</span>
+<span class="fc" id="L103">            output.append(line);</span>
+<span class="fc" id="L104">            output.append(System.lineSeparator());</span>
+<span class="fc" id="L105">        }</span>
+<span class="fc" id="L106">        return output;</span>
+    }
+
+    /**
+     * Collect output from a process in a list of strings.
+     * @param process process
+     * @return output as a list of strings, each string is a line
+     */
+    public static @NotNull List&lt;String&gt; collectOutputAsList(
+        final @NotNull Process process
+    ) throws IOException {
+        List&lt;String&gt; output;
+
+        try (
+<span class="fc" id="L120">            BufferedReader reader = new BufferedReader(</span>
+<span class="fc" id="L121">                new InputStreamReader(process.getInputStream())</span>
+            )
+        ) {
+<span class="fc" id="L124">            output = readLines(reader);</span>
+        }
+<span class="fc" id="L126">        return output;</span>
+    }
+
+    /**
+     * Read lines from a buffered reader.
+     * @param reader buffered reader
+     * @return list of lines
+     * @throws IOException if an I/O error occurs
+     */
+    static @NotNull List&lt;String&gt; readLines(
+        final @NotNull BufferedReader reader
+    ) throws IOException {
+<span class="fc" id="L138">        List&lt;String&gt; lines = new ArrayList&lt;&gt;();</span>
+        String line;
+<span class="fc bfc" id="L140" title="All 2 branches covered.">        while ((line = reader.readLine()) != null) {</span>
+<span class="fc" id="L141">            lines.add(line);</span>
+        }
+<span class="fc" id="L143">        return lines;</span>
+    }
+
+    /**
+     * Get exit code from a process.
+     * @param process process
+     * @return exit code
+     */
+    static int getExitCode(final Process process) {
+        int exitCode;
+        try {
+<span class="fc" id="L154">            exitCode = process.waitFor();</span>
+<span class="fc" id="L155">        } catch (InterruptedException e) {</span>
+<span class="fc" id="L156">            return -1;</span>
+<span class="fc" id="L157">        }</span>
+<span class="fc" id="L158">        return exitCode;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.9.202303310957</span></div></body></html>

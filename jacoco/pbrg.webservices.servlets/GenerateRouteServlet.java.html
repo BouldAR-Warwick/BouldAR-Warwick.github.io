@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GenerateRouteServlet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">webservices</a> &gt; <a href="index.source.html" class="el_package">pbrg.webservices.servlets</a> &gt; <span class="el_source">GenerateRouteServlet.java</span></div><h1>GenerateRouteServlet.java</h1><pre class="source lang-java linenums">package pbrg.webservices.servlets;
+
+import static pbrg.webservices.database.AuthenticationController.userExists;
+import static pbrg.webservices.database.GymController.gymExists;
+import static pbrg.webservices.database.RouteController.addRoute;
+import static pbrg.webservices.database.WallController.addWall;
+import static pbrg.webservices.database.WallController.getWallIdFromGymId;
+import static pbrg.webservices.database.WallController.gymHasWall;
+import static pbrg.webservices.utils.RouteUtils.createAndStoreRouteImage;
+import static pbrg.webservices.utils.RouteUtils.generateRouteMoonBoard;
+
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import java.io.IOException;
+import org.jetbrains.annotations.NotNull;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import pbrg.webservices.database.WallController;
+import pbrg.webservices.utils.RouteUtils;
+
+<span class="fc" id="L23">@WebServlet(</span>
+    name = &quot;GenerateRouteServlet&quot;,
+    urlPatterns = &quot;/GenerateRoute&quot;
+)
+<span class="fc" id="L27">public class GenerateRouteServlet extends MyHttpServlet {</span>
+
+    @Override
+    protected final void doGet(
+        final @NotNull HttpServletRequest request,
+        final @NotNull HttpServletResponse response
+    ) throws IOException {
+<span class="fc" id="L34">        doPost(request, response);</span>
+<span class="fc" id="L35">    }</span>
+
+    /**
+     * given wall ID and grade, generate a route.
+     * */
+    @Override
+    protected final void doPost(
+        final @NotNull HttpServletRequest request,
+        final @NotNull HttpServletResponse response
+    ) throws IOException {
+        // validate request
+<span class="fc" id="L46">        boolean requiresSession = true;</span>
+<span class="fc" id="L47">        String userIdKey = &quot;uid&quot;;</span>
+<span class="fc" id="L48">        String gymIdKey = &quot;gid&quot;;</span>
+<span class="fc" id="L49">        String[] sessionAttributes = {userIdKey, gymIdKey};</span>
+<span class="fc" id="L50">        String difficultyKey = &quot;difficulty&quot;;</span>
+<span class="fc" id="L51">        JSONObject body = getBodyAsJson(request);</span>
+<span class="fc" id="L52">        String[] bodyAttributes = {difficultyKey};</span>
+<span class="fc bfc" id="L53" title="All 2 branches covered.">        if (!validateRequest(</span>
+            request, response, body, requiresSession,
+            sessionAttributes, bodyAttributes
+        )) {
+<span class="fc" id="L57">            return;</span>
+        }
+
+        // get arguments
+<span class="fc" id="L61">        HttpSession session = getSession(request);</span>
+<span class="pc bpc" id="L62" title="1 of 2 branches missed.">        assert session != null;</span>
+<span class="fc" id="L63">        int userId = (int) session.getAttribute(&quot;uid&quot;);</span>
+<span class="fc" id="L64">        int gymId = (int) session.getAttribute(&quot;gid&quot;);</span>
+
+        // get the difficulty
+<span class="pc bpc" id="L67" title="1 of 2 branches missed.">        assert body != null;</span>
+<span class="fc" id="L68">        int grade = body.getInt(difficultyKey);</span>
+
+        // ensure the user exists
+<span class="fc bfc" id="L71" title="All 2 branches covered.">        if (!userExists(userId)) {</span>
+<span class="fc" id="L72">            response.sendError(</span>
+                HttpServletResponse.SC_EXPECTATION_FAILED,
+                &quot;User does not exist&quot;
+            );
+<span class="fc" id="L76">            return;</span>
+        }
+
+        // ensure the gym exists
+<span class="fc bfc" id="L80" title="All 2 branches covered.">        if (!gymExists(gymId)) {</span>
+<span class="fc" id="L81">            response.sendError(</span>
+                HttpServletResponse.SC_EXPECTATION_FAILED,
+                &quot;Gym does not exist&quot;
+            );
+<span class="fc" id="L85">            return;</span>
+        }
+
+        // ensure the gym has a wall; if not, mock one
+<span class="fc" id="L89">        boolean mockingWall = false;</span>
+<span class="fc bfc" id="L90" title="All 2 branches covered.">        if (!gymHasWall(gymId)) {</span>
+            // add a wall using the MoonBoard wall
+<span class="fc" id="L92">            addWall(gymId, &quot;MoonBoard&quot;, &quot;MoonBoard2016.jpg&quot;);</span>
+<span class="fc" id="L93">            mockingWall = true;</span>
+        }
+<span class="pc bpc" id="L95" title="1 of 2 branches missed.">        assert gymHasWall(gymId);</span>
+
+        // get the wall ID
+<span class="fc" id="L98">        Integer wallID = getWallIdFromGymId(gymId);</span>
+<span class="pc bpc" id="L99" title="1 of 2 branches missed.">        assert wallID != null;</span>
+
+        // generate the route
+        JSONArray route;
+        try {
+<span class="fc" id="L104">            route = generateRouteMoonBoard(grade);</span>
+<span class="pc bpc" id="L105" title="1 of 2 branches missed.">            assert !route.isEmpty();</span>
+<span class="fc" id="L106">        } catch (IOException | RuntimeException e) {</span>
+            // cleanup the wall, if mocked
+<span class="fc bfc" id="L108" title="All 2 branches covered.">            if (mockingWall) {</span>
+<span class="fc" id="L109">                WallController.deleteWall(wallID);</span>
+            }
+<span class="fc" id="L111">            response.sendError(</span>
+                HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+<span class="fc" id="L113">                &quot;Route generation failed&quot; + e.getMessage()</span>
+            );
+<span class="fc" id="L115">            return;</span>
+<span class="fc" id="L116">        }</span>
+
+        // store the route as a new route in the database
+<span class="fc" id="L119">        Integer routeId = addRoute(</span>
+<span class="fc" id="L120">            route.toString(), grade, userId, wallID</span>
+        );
+<span class="pc bpc" id="L122" title="1 of 2 branches missed.">        assert routeId != null;</span>
+
+        // generate the route image (thumbnail)
+<span class="fc" id="L125">        boolean routeImageGenerated = createAndStoreRouteImage(routeId);</span>
+<span class="fc bfc" id="L126" title="All 2 branches covered.">        if (!routeImageGenerated) {</span>
+            // cleanup the route, wall (if mocked)
+<span class="fc" id="L128">            RouteUtils.deleteRoute(routeId);</span>
+<span class="fc bfc" id="L129" title="All 2 branches covered.">            if (mockingWall) {</span>
+<span class="fc" id="L130">                WallController.deleteWall(wallID);</span>
+            }
+<span class="fc" id="L132">            response.sendError(</span>
+                HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                &quot;Failed to create route image.&quot;
+            );
+<span class="fc" id="L136">            return;</span>
+        }
+
+        // Route generated successfully
+
+        // return the route id and route
+<span class="fc" id="L142">        JSONObject responseJSON = new JSONObject();</span>
+<span class="fc" id="L143">        responseJSON.put(&quot;routeId&quot;, routeId);</span>
+<span class="fc" id="L144">        response.setContentType(&quot;application/json&quot;);</span>
+<span class="fc" id="L145">        response.getWriter().write(responseJSON.toString());</span>
+
+        // report success
+<span class="fc" id="L148">        response.setStatus(HttpServletResponse.SC_OK);</span>
+<span class="fc" id="L149">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.9.202303310957</span></div></body></html>

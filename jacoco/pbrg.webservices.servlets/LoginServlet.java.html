@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LoginServlet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">webservices</a> &gt; <a href="index.source.html" class="el_package">pbrg.webservices.servlets</a> &gt; <span class="el_source">LoginServlet.java</span></div><h1>LoginServlet.java</h1><pre class="source lang-java linenums">package pbrg.webservices.servlets;
+
+import static pbrg.webservices.database.AuthenticationController.signIn;
+
+import com.google.gson.Gson;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import java.io.IOException;
+import java.time.Duration;
+import org.jetbrains.annotations.NotNull;
+import org.json.JSONObject;
+import pbrg.webservices.models.User;
+import pbrg.webservices.utils.ServletUtils;
+
+<span class="fc" id="L18">@WebServlet(name = &quot;LoginServlet&quot;, urlPatterns = &quot;/Login&quot;)</span>
+<span class="fc" id="L19">public class LoginServlet extends MyHttpServlet {</span>
+
+    @Override
+    protected final void doGet(
+        final @NotNull HttpServletRequest request,
+        final @NotNull HttpServletResponse response
+    ) throws IOException {
+<span class="fc" id="L26">        doPost(request, response);</span>
+<span class="fc" id="L27">    }</span>
+
+    @Override
+    protected final void doPost(
+        final @NotNull HttpServletRequest request,
+        final @NotNull HttpServletResponse response
+    ) throws IOException {
+        // validate request
+<span class="fc" id="L35">        boolean requiresSession = false;</span>
+<span class="fc" id="L36">        String[] sessionAttributes = {};</span>
+<span class="fc" id="L37">        String usernameKey = &quot;username&quot;;</span>
+<span class="fc" id="L38">        String passwordKey = &quot;password&quot;;</span>
+<span class="fc" id="L39">        String persistKey = &quot;stayLoggedIn&quot;;</span>
+<span class="fc" id="L40">        JSONObject body = getBodyAsJson(request);</span>
+<span class="fc" id="L41">        String[] bodyAttributes = {usernameKey, passwordKey, persistKey};</span>
+<span class="fc bfc" id="L42" title="All 2 branches covered.">        if (!validateRequest(</span>
+            request, response, body, requiresSession,
+            sessionAttributes, bodyAttributes
+        )) {
+<span class="fc" id="L46">            return;</span>
+        }
+
+        // collect credentials
+<span class="pc bpc" id="L50" title="1 of 2 branches missed.">        assert body != null;</span>
+<span class="fc" id="L51">        String username = body.getString(usernameKey);</span>
+<span class="fc" id="L52">        String password = body.getString(passwordKey);</span>
+<span class="fc" id="L53">        boolean stayLoggedIn = body.getBoolean(persistKey);</span>
+
+<span class="fc" id="L55">        User user = signIn(username, password);</span>
+<span class="fc bfc" id="L56" title="All 2 branches covered.">        if (user == null) {</span>
+            // first case -&gt; user not been authenticated (wrong credentials)
+<span class="fc" id="L58">            response.sendError(</span>
+                HttpServletResponse.SC_UNAUTHORIZED,
+                &quot;Failed to authenticate user&quot;
+            );
+<span class="fc" id="L62">            return;</span>
+        }
+
+
+        // user is authenticated
+<span class="fc" id="L67">        HttpSession session = request.getSession();</span>
+<span class="fc" id="L68">        session.setAttribute(&quot;uid&quot;, user.getUid());</span>
+
+<span class="fc bfc" id="L70" title="All 2 branches covered.">        if (stayLoggedIn) {</span>
+            // create cookie and store logged-in user info in cookie
+<span class="fc" id="L72">            Cookie cookie1 = new Cookie(usernameKey, user.getUsername());</span>
+<span class="fc" id="L73">            Cookie cookie2 = new Cookie(&quot;uid&quot;, String.valueOf(user.getUid()));</span>
+
+            // set expired time to 7 days
+<span class="fc" id="L76">            int sevenDaysInSeconds =</span>
+<span class="fc" id="L77">                (int) Duration.ofDays(ServletUtils.SEVEN_DAYS).getSeconds();</span>
+<span class="fc" id="L78">            cookie1.setMaxAge(sevenDaysInSeconds);</span>
+<span class="fc" id="L79">            cookie2.setMaxAge(sevenDaysInSeconds);</span>
+
+            // send cookie back to client for authentication next time
+<span class="fc" id="L82">            response.addCookie(cookie1);</span>
+<span class="fc" id="L83">            response.addCookie(cookie2);</span>
+        }
+
+        // returning user as json
+<span class="fc" id="L87">        String userAsJson = new Gson().toJson(user);</span>
+<span class="fc" id="L88">        response.setContentType(&quot;application/json&quot;);</span>
+<span class="fc" id="L89">        response.setCharacterEncoding(&quot;UTF-8&quot;);</span>
+<span class="fc" id="L90">        response.getWriter().write(userAsJson);</span>
+
+        // report success
+<span class="fc" id="L93">        response.setStatus(HttpServletResponse.SC_OK);</span>
+<span class="fc" id="L94">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.9.202303310957</span></div></body></html>

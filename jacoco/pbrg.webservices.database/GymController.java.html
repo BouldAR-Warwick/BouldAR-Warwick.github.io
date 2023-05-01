@@ -1,0 +1,376 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GymController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">webservices</a> &gt; <a href="index.source.html" class="el_package">pbrg.webservices.database</a> &gt; <span class="el_source">GymController.java</span></div><h1>GymController.java</h1><pre class="source lang-java linenums">package pbrg.webservices.database;
+
+import static pbrg.webservices.database.DatabaseController.getDataSource;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import pbrg.webservices.models.Gym;
+
+public final class GymController {
+
+    /** The gym name length cap. */
+    static final int GYM_NAME_LENGTH_CAP = 64;
+
+    /** The gym location length cap. */
+    static final int GYM_LOCATION_LENGTH_CAP = 32;
+
+    /** Static class, no need to instantiate. */
+<span class="fc" id="L25">    private GymController() {</span>
+<span class="fc" id="L26">        throw new IllegalStateException(&quot;Utility class&quot;);</span>
+    }
+
+    /**
+     * Insert a gym into the database.
+     * @param gymName gym name
+     * @param gymLocation gym location
+     * @return the gym id if successful, null otherwise
+     */
+    public static @Nullable Integer addGym(
+        final @NotNull String gymName,
+        final @NotNull String gymLocation
+    ) {
+<span class="fc bfc" id="L39" title="All 2 branches covered.">        if (gymName.length() &gt; GYM_NAME_LENGTH_CAP) {</span>
+<span class="fc" id="L40">            return null;</span>
+        }
+
+<span class="fc bfc" id="L43" title="All 2 branches covered.">        if (gymLocation.length() &gt; GYM_LOCATION_LENGTH_CAP) {</span>
+<span class="fc" id="L44">            return null;</span>
+        }
+
+<span class="fc bfc" id="L47" title="All 2 branches covered.">        if (gymExists(gymName)) {</span>
+<span class="fc" id="L48">            return null;</span>
+        }
+
+<span class="fc" id="L51">        return insertGym(gymName, gymLocation);</span>
+    }
+
+    /**
+     * Delete a gym from the database.
+     * @param gymName gym name
+     * @param gymLocation gym location
+     * @return the gym id if successful, null otherwise
+     */
+    private static @Nullable Integer insertGym(
+        final String gymName, final String gymLocation
+    ) {
+<span class="fc" id="L63">        Integer gymId = null;</span>
+        try (
+<span class="fc" id="L65">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L66">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;INSERT INTO gyms (GymName, GymLocation) VALUES (?,?)&quot;,
+                Statement.RETURN_GENERATED_KEYS
+            )
+        ) {
+<span class="fc" id="L71">            String[] values = {gymName, gymLocation};</span>
+<span class="fc bfc" id="L72" title="All 2 branches covered.">            for (int i = 1; i &lt;= values.length; i++) {</span>
+<span class="fc" id="L73">                pst.setString(i, values[i - 1]);</span>
+            }
+<span class="fc" id="L75">            pst.executeUpdate();</span>
+
+<span class="fc" id="L77">            ResultSet rs = pst.getGeneratedKeys();</span>
+<span class="fc bfc" id="L78" title="All 2 branches covered.">            if (rs.next()) {</span>
+<span class="fc" id="L79">                gymId = rs.getInt(1);</span>
+            }
+<span class="fc" id="L81">        } catch (SQLException e) {</span>
+<span class="fc" id="L82">            return null;</span>
+<span class="fc" id="L83">        }</span>
+<span class="fc" id="L84">        return gymId;</span>
+    }
+
+    /**
+     * Check if a gym exists (by gym name).
+     * @param gymId gym identifier
+     * @return true if gym exists, false otherwise
+     */
+    public static boolean gymExists(final int gymId) {
+<span class="fc" id="L93">        boolean exists = false;</span>
+        try (
+<span class="fc" id="L95">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L96">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;SELECT EXISTS (SELECT 1 FROM gyms WHERE GID=?)&quot;
+            )
+        ) {
+<span class="fc" id="L100">            pst.setInt(1, gymId);</span>
+
+<span class="fc" id="L102">            ResultSet rs = pst.executeQuery();</span>
+<span class="fc bfc" id="L103" title="All 2 branches covered.">            if (rs.next()) {</span>
+<span class="fc" id="L104">                exists = rs.getBoolean(1);</span>
+            }
+<span class="fc" id="L106">        } catch (SQLException e) {</span>
+<span class="fc" id="L107">            return false;</span>
+<span class="fc" id="L108">        }</span>
+<span class="fc" id="L109">        return exists;</span>
+    }
+
+    /**
+     * Check if a gym exists (by gym name).
+     * @param gymName gym name
+     * @return true if gym exists, false otherwise
+     */
+    public static boolean gymExists(final String gymName) {
+<span class="fc" id="L118">        boolean exists = false;</span>
+        try (
+<span class="fc" id="L120">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L121">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;SELECT EXISTS (SELECT 1 FROM gyms WHERE GymName=?)&quot;
+            )
+        ) {
+<span class="fc" id="L125">            pst.setString(1, gymName);</span>
+
+<span class="fc" id="L127">            ResultSet rs = pst.executeQuery();</span>
+<span class="fc bfc" id="L128" title="All 2 branches covered.">            if (rs.next()) {</span>
+<span class="fc" id="L129">                exists = rs.getBoolean(1);</span>
+            }
+<span class="fc" id="L131">        } catch (SQLException e) {</span>
+<span class="fc" id="L132">            return false;</span>
+<span class="fc" id="L133">        }</span>
+<span class="fc" id="L134">        return exists;</span>
+    }
+
+    /**
+     * Delete a gym (by gym ID).
+     * @param gymID gym ID
+     * @return true if gym was deleted, false otherwise
+     */
+    public static boolean deleteGym(
+        final int gymID
+    ) {
+        boolean deleted;
+        try (
+<span class="fc" id="L147">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L148">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;DELETE FROM gyms WHERE GID=?&quot;
+            )
+        ) {
+<span class="fc" id="L152">            pst.setInt(1, gymID);</span>
+<span class="fc bfc" id="L153" title="All 2 branches covered.">            deleted = pst.executeUpdate() == 1;</span>
+<span class="fc" id="L154">        } catch (SQLException e) {</span>
+<span class="fc" id="L155">            return false;</span>
+<span class="fc" id="L156">        }</span>
+<span class="fc" id="L157">        return deleted;</span>
+    }
+
+    /**
+     * Get all gyms matching a query word in its location or name.
+     * @param queryWord query word
+     * @return list of gyms
+     */
+    public static @NotNull List&lt;String&gt; getGymsByQueryWord(
+        final @NotNull String queryWord
+    ) {
+<span class="fc" id="L168">        List&lt;String&gt; gyms = new ArrayList&lt;&gt;();</span>
+        try (
+<span class="fc" id="L170">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L171">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;SELECT GymName &quot;
+                    + &quot;FROM gyms &quot;
+                    + &quot;WHERE GymLocation LIKE ? OR GymName LIKE ?&quot;
+            )
+        ) {
+<span class="fc" id="L177">            pst.setString(1, &quot;%&quot; + queryWord + &quot;%&quot;);</span>
+<span class="fc" id="L178">            pst.setString(2, &quot;%&quot; + queryWord + &quot;%&quot;);</span>
+<span class="fc" id="L179">            ResultSet rs = pst.executeQuery();</span>
+<span class="fc bfc" id="L180" title="All 2 branches covered.">            while (rs.next()) {</span>
+<span class="fc" id="L181">                gyms.add(rs.getString(&quot;GymName&quot;));</span>
+            }
+<span class="fc" id="L183">        } catch (SQLException e) {</span>
+<span class="fc" id="L184">            return gyms;</span>
+<span class="fc" id="L185">        }</span>
+<span class="fc" id="L186">        return gyms;</span>
+    }
+
+    /**
+     * Find a gym by its name.
+     * @param gymName The name of the gym.
+     * @return The gym.
+     */
+    public static @Nullable Gym getGymByGymName(
+        final @NotNull String gymName
+    ) {
+        Gym gym;
+        try (
+<span class="fc" id="L199">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L200">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;SELECT GID, GymName, GymLocation FROM gyms WHERE Gymname = ?&quot;)
+        ) {
+<span class="fc" id="L203">            pst.setString(1, gymName);</span>
+<span class="fc" id="L204">            gym = extractGym(pst);</span>
+<span class="fc" id="L205">        } catch (SQLException e) {</span>
+<span class="fc" id="L206">            return null;</span>
+<span class="fc" id="L207">        }</span>
+<span class="fc" id="L208">        return gym;</span>
+    }
+
+    /**
+     * Find a gym by its id.
+     * @param gymId The id of the gym.
+     * @return The gym.
+     */
+    public static @Nullable Gym getGym(final int gymId) {
+        Gym gym;
+        try (
+<span class="fc" id="L219">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L220">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;SELECT GID, GymName, GymLocation FROM gyms WHERE GID = ?&quot;)
+        ) {
+<span class="fc" id="L223">            pst.setInt(1, gymId);</span>
+<span class="fc" id="L224">            gym = extractGym(pst);</span>
+<span class="fc" id="L225">        } catch (SQLException e) {</span>
+<span class="fc" id="L226">            return null;</span>
+<span class="fc" id="L227">        }</span>
+<span class="fc" id="L228">        return gym;</span>
+    }
+
+    /**
+     * Extract a Gym from a result set.
+     * @param pst prepared statement
+     * @return gym
+     * @throws SQLException if database error
+     */
+    private static @Nullable Gym extractGym(
+        final @NotNull PreparedStatement pst
+    ) throws SQLException {
+<span class="fc" id="L240">        ResultSet rs = pst.executeQuery();</span>
+<span class="fc bfc" id="L241" title="All 2 branches covered.">        if (rs.next()) {</span>
+<span class="fc" id="L242">            int gid = rs.getInt(&quot;GID&quot;);</span>
+<span class="fc" id="L243">            String rGymName = rs.getString(&quot;GymName&quot;);</span>
+<span class="fc" id="L244">            String gymLocation = rs.getString(&quot;GymLocation&quot;);</span>
+<span class="fc" id="L245">            return new Gym(gid, rGymName, gymLocation);</span>
+        }
+<span class="fc" id="L247">        return null;</span>
+    }
+
+    /**
+     * Set the primary gym for a user.
+     * @param userId user ID
+     * @param gymId gym ID
+     * @return true if added, false otherwise
+     */
+    public static boolean setPrimaryGym(
+        final int userId, final int gymId
+    ) {
+        boolean added;
+        try (
+<span class="fc" id="L261">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L262">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;INSERT INTO user_in_gym (UID, GID) VALUES (?, ?)&quot;
+            )
+        ) {
+<span class="fc" id="L266">            pst.setInt(1, userId);</span>
+<span class="fc" id="L267">            pst.setInt(2, gymId);</span>
+<span class="fc bfc" id="L268" title="All 2 branches covered.">            added = pst.executeUpdate() == 1;</span>
+<span class="fc" id="L269">        } catch (SQLException e) {</span>
+<span class="fc" id="L270">            return false;</span>
+<span class="fc" id="L271">        }</span>
+<span class="fc" id="L272">        return added;</span>
+    }
+
+    /**
+     * Remove a user's primary gym.
+     * @param userId user ID
+     * @return true if removed, false otherwise
+     */
+    public static boolean removeUserPrimaryGym(
+        final int userId
+    ) {
+        boolean removed;
+        try (
+<span class="fc" id="L285">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L286">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;DELETE FROM user_in_gym WHERE UID = ?&quot;
+            )
+        ) {
+<span class="fc" id="L290">            pst.setInt(1, userId);</span>
+<span class="fc bfc" id="L291" title="All 2 branches covered.">            removed = pst.executeUpdate() == 1;</span>
+<span class="fc" id="L292">        } catch (SQLException e) {</span>
+<span class="fc" id="L293">            return false;</span>
+<span class="fc" id="L294">        }</span>
+<span class="fc" id="L295">        return removed;</span>
+    }
+
+    /**
+     * Get a user's primary gym id.
+     * @param userId user ID
+     * @return a gym ID
+     */
+    public static @Nullable Integer getPrimaryGymOfUser(final int userId) {
+<span class="fc" id="L304">        Integer gymId = null;</span>
+        try (
+<span class="fc" id="L306">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L307">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;SELECT GID FROM user_in_gym WHERE UID = ?&quot;
+            )
+        ) {
+<span class="fc" id="L311">            pst.setInt(1, userId);</span>
+
+<span class="fc" id="L313">            ResultSet rs = pst.executeQuery();</span>
+<span class="fc bfc" id="L314" title="All 2 branches covered.">            if (rs.next()) {</span>
+<span class="fc" id="L315">                gymId = rs.getInt(&quot;GID&quot;);</span>
+            }
+<span class="fc" id="L317">        } catch (SQLException e) {</span>
+<span class="fc" id="L318">            return null;</span>
+<span class="fc" id="L319">        }</span>
+<span class="fc" id="L320">        return gymId;</span>
+    }
+
+    /**
+     * Get a gym id from the gym name.
+     * @param gymName gym name
+     * @return gym id
+     */
+    public static @Nullable Integer getGymIdByGymName(
+        final @NotNull String gymName
+    ) {
+<span class="fc" id="L331">        Integer gymId = null;</span>
+        try (
+<span class="fc" id="L333">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L334">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;SELECT GID FROM gyms WHERE GymName = ?&quot;
+            )
+        ) {
+<span class="fc" id="L338">            pst.setString(1, gymName);</span>
+
+<span class="fc" id="L340">            ResultSet rs = pst.executeQuery();</span>
+<span class="fc bfc" id="L341" title="All 2 branches covered.">            if (rs.next()) {</span>
+<span class="fc" id="L342">                gymId = rs.getInt(&quot;GID&quot;);</span>
+            }
+<span class="fc" id="L344">        } catch (SQLException e) {</span>
+<span class="fc" id="L345">            return null;</span>
+<span class="fc" id="L346">        }</span>
+<span class="fc" id="L347">        return gymId;</span>
+    }
+
+    /**
+     * Check if a user has a primary gym.
+     * @param userId user ID
+     * @return true if user has a primary gym, false otherwise
+     */
+    public static boolean userHasPrimaryGym(
+        final int userId
+    ) {
+<span class="fc" id="L358">        boolean exists = false;</span>
+        try (
+<span class="fc" id="L360">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L361">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;SELECT EXISTS(SELECT 1 FROM user_in_gym WHERE UID = ?)&quot;
+            )
+        ) {
+<span class="fc" id="L365">            pst.setInt(1, userId);</span>
+<span class="fc" id="L366">            ResultSet rs = pst.executeQuery();</span>
+<span class="fc bfc" id="L367" title="All 2 branches covered.">            if (rs.next()) {</span>
+<span class="fc" id="L368">                exists = rs.getBoolean(1);</span>
+            }
+<span class="fc" id="L370">        } catch (SQLException e) {</span>
+<span class="fc" id="L371">            return false;</span>
+<span class="fc" id="L372">        }</span>
+<span class="fc" id="L373">        return exists;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.9.202303310957</span></div></body></html>

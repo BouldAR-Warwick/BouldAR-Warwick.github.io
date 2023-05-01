@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GetRoutesServlet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">webservices</a> &gt; <a href="index.source.html" class="el_package">pbrg.webservices.servlets</a> &gt; <span class="el_source">GetRoutesServlet.java</span></div><h1>GetRoutesServlet.java</h1><pre class="source lang-java linenums">package pbrg.webservices.servlets;
+
+import static pbrg.webservices.database.AuthenticationController.userExists;
+import static pbrg.webservices.database.GymController.gymExists;
+import static pbrg.webservices.database.RouteController
+    .getRoutesInGymMadeByUser;
+
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import java.io.IOException;
+import java.util.List;
+import org.jetbrains.annotations.NotNull;
+import org.json.JSONObject;
+import pbrg.webservices.models.Route;
+
+<span class="fc" id="L18">@WebServlet(name = &quot;GetRoutesServlet&quot;, urlPatterns = &quot;/GetRoutes&quot;)</span>
+<span class="fc" id="L19">public class GetRoutesServlet extends MyHttpServlet {</span>
+
+    @Override
+    protected final void doGet(
+        final @NotNull HttpServletRequest request,
+        final @NotNull HttpServletResponse response
+    ) throws IOException {
+<span class="fc" id="L26">        doPost(request, response);</span>
+<span class="fc" id="L27">    }</span>
+
+    @Override
+    protected final void doPost(
+        final @NotNull HttpServletRequest request,
+        final @NotNull HttpServletResponse response
+    ) throws IOException {
+        // validate request
+<span class="fc" id="L35">        boolean requiresSession = true;</span>
+<span class="fc" id="L36">        String userIdKey = &quot;uid&quot;;</span>
+<span class="fc" id="L37">        String gymIdKey = &quot;gid&quot;;</span>
+<span class="fc" id="L38">        String[] sessionAttributes = {userIdKey, gymIdKey};</span>
+<span class="fc" id="L39">        String[] bodyAttributes = {};</span>
+<span class="fc bfc" id="L40" title="All 2 branches covered.">        if (!validateRequest(</span>
+            request, response, null, requiresSession,
+            sessionAttributes, bodyAttributes
+        )) {
+<span class="fc" id="L44">            return;</span>
+        }
+
+        // collect user id, gym id from cookies
+<span class="fc" id="L48">        HttpSession session = getSession(request);</span>
+<span class="pc bpc" id="L49" title="1 of 2 branches missed.">        assert session != null;</span>
+<span class="fc" id="L50">        int userId = (int) session.getAttribute(&quot;uid&quot;);</span>
+<span class="fc" id="L51">        int gymId = (int) session.getAttribute(&quot;gid&quot;);</span>
+
+        // ensure the user id is valid
+<span class="fc bfc" id="L54" title="All 2 branches covered.">        if (!userExists(userId)) {</span>
+<span class="fc" id="L55">            response.sendError(</span>
+                HttpServletResponse.SC_BAD_REQUEST,
+                &quot;User ID does not exist&quot;
+            );
+<span class="fc" id="L59">            return;</span>
+        }
+
+        // ensure the gym id is valid
+<span class="fc bfc" id="L63" title="All 2 branches covered.">        if (!gymExists(gymId)) {</span>
+<span class="fc" id="L64">            response.sendError(</span>
+                HttpServletResponse.SC_BAD_REQUEST,
+                &quot;Gym ID does not exist&quot;
+            );
+<span class="fc" id="L68">            return;</span>
+        }
+
+        // get routes in gym made by user
+<span class="fc" id="L72">        List&lt;Route&gt; routes = getRoutesInGymMadeByUser(gymId, userId);</span>
+<span class="fc" id="L73">        Route[] arrayOfRoutes = routes.toArray(new Route[0]);</span>
+
+        // place list of routes in response body
+<span class="fc" id="L76">        JSONObject responseBody = new JSONObject();</span>
+<span class="fc" id="L77">        responseBody.put(&quot;routes&quot;, arrayOfRoutes);</span>
+
+        // send response
+<span class="fc" id="L80">        response.setContentType(&quot;application/json&quot;);</span>
+<span class="fc" id="L81">        response.setCharacterEncoding(&quot;UTF-8&quot;);</span>
+<span class="fc" id="L82">        response.getWriter().write(responseBody.toString());</span>
+
+        // report success
+<span class="fc" id="L85">        response.setStatus(HttpServletResponse.SC_OK);</span>
+<span class="fc" id="L86">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.9.202303310957</span></div></body></html>

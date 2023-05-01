@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StoreRouteServlet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">webservices</a> &gt; <a href="index.source.html" class="el_package">pbrg.webservices.servlets</a> &gt; <span class="el_source">StoreRouteServlet.java</span></div><h1>StoreRouteServlet.java</h1><pre class="source lang-java linenums">package pbrg.webservices.servlets;
+
+import static pbrg.webservices.database.AuthenticationController.userExists;
+import static pbrg.webservices.database.RouteController.routeExists;
+import static pbrg.webservices.database.RouteController.userOwnsRoute;
+
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import java.io.IOException;
+import org.jetbrains.annotations.NotNull;
+import org.json.JSONObject;
+
+<span class="fc" id="L15">@WebServlet(name = &quot;StoreRouteServlet&quot;, urlPatterns = &quot;/GetRoute&quot;)</span>
+<span class="fc" id="L16">public class StoreRouteServlet extends MyHttpServlet {</span>
+
+    @Override
+    protected final void doGet(
+        final @NotNull HttpServletRequest request,
+        final @NotNull HttpServletResponse response
+    ) throws IOException {
+<span class="fc" id="L23">        doPost(request, response);</span>
+<span class="fc" id="L24">    }</span>
+
+    @Override
+    protected final void doPost(
+        final @NotNull HttpServletRequest request,
+        final @NotNull HttpServletResponse response
+    ) throws IOException {
+        // validate request
+<span class="fc" id="L32">        boolean requiresSession = true;</span>
+<span class="fc" id="L33">        String userIdKey = &quot;uid&quot;;</span>
+<span class="fc" id="L34">        String[] sessionAttributes = {userIdKey};</span>
+<span class="fc" id="L35">        String routeIdKey = &quot;routeID&quot;;</span>
+<span class="fc" id="L36">        JSONObject body = getBodyAsJson(request);</span>
+<span class="fc" id="L37">        String[] bodyAttributes = {routeIdKey};</span>
+<span class="fc bfc" id="L38" title="All 2 branches covered.">        if (!validateRequest(</span>
+            request, response, body, requiresSession,
+            sessionAttributes, bodyAttributes
+        )) {
+<span class="fc" id="L42">            return;</span>
+        }
+
+        // get user ID from session attribute
+<span class="fc" id="L46">        HttpSession session = getSession(request);</span>
+<span class="pc bpc" id="L47" title="1 of 2 branches missed.">        assert session != null;</span>
+<span class="fc" id="L48">        int userID = (int) session.getAttribute(userIdKey);</span>
+
+        // get route ID from request body
+<span class="pc bpc" id="L51" title="1 of 2 branches missed.">        assert body != null;</span>
+<span class="fc" id="L52">        int routeID = (int) body.get(routeIdKey);</span>
+
+        // ensure the user id is valid
+<span class="fc bfc" id="L55" title="All 2 branches covered.">        if (!userExists(userID)) {</span>
+<span class="fc" id="L56">            response.sendError(</span>
+                HttpServletResponse.SC_BAD_REQUEST,
+                &quot;User ID does not exist&quot;
+            );
+<span class="fc" id="L60">            return;</span>
+        }
+
+        // ensure the route exists
+<span class="fc bfc" id="L64" title="All 2 branches covered.">        if (!routeExists(routeID)) {</span>
+<span class="fc" id="L65">            response.sendError(</span>
+                HttpServletResponse.SC_BAD_REQUEST,
+                &quot;Route ID does not exist&quot;
+            );
+<span class="fc" id="L69">            return;</span>
+        }
+
+        // ensure this user created this route
+<span class="fc" id="L73">        boolean userCreatedRoute = userOwnsRoute(userID, routeID);</span>
+<span class="fc bfc" id="L74" title="All 2 branches covered.">        if (!userCreatedRoute) {</span>
+<span class="fc" id="L75">            response.sendError(</span>
+                HttpServletResponse.SC_EXPECTATION_FAILED,
+                &quot;User did not create this route&quot;
+            );
+<span class="fc" id="L79">            return;</span>
+        }
+
+        // store route ID in session attribute
+<span class="fc" id="L83">        session.setAttribute(&quot;rid&quot;, routeID);</span>
+
+        // report success
+<span class="fc" id="L86">        response.setStatus(HttpServletResponse.SC_OK);</span>
+<span class="fc" id="L87">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.9.202303310957</span></div></body></html>

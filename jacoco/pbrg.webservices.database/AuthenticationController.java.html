@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthenticationController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">webservices</a> &gt; <a href="index.source.html" class="el_package">pbrg.webservices.database</a> &gt; <span class="el_source">AuthenticationController.java</span></div><h1>AuthenticationController.java</h1><pre class="source lang-java linenums">package pbrg.webservices.database;
+
+import static pbrg.webservices.database.DatabaseController.getDataSource;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import pbrg.webservices.models.User;
+
+public final class AuthenticationController {
+
+    /** Static class, no need to instantiate. */
+<span class="fc" id="L17">    private AuthenticationController() {</span>
+<span class="fc" id="L18">        throw new IllegalStateException(&quot;Utility class&quot;);</span>
+    }
+
+    /**
+     * Sign a user in.
+     *
+     * @param username username
+     * @param password password
+     * @return user object
+     */
+    public static @Nullable User signIn(
+        final String username, final String password) {
+<span class="fc" id="L30">        User user = null;</span>
+        try (
+<span class="fc" id="L32">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L33">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;SELECT * FROM users WHERE username=? AND password=?&quot;
+            )
+        ) {
+<span class="fc" id="L37">            pst.setString(1, username);</span>
+<span class="fc" id="L38">            pst.setString(2, password);</span>
+<span class="fc" id="L39">            ResultSet rs = pst.executeQuery();</span>
+<span class="fc bfc" id="L40" title="All 2 branches covered.">            if (rs.next()) {</span>
+<span class="fc" id="L41">                user = new User(rs.getInt(&quot;uid&quot;), rs.getString(&quot;username&quot;));</span>
+            }
+<span class="fc" id="L43">        } catch (SQLException e) {</span>
+<span class="fc" id="L44">            return null;</span>
+<span class="fc" id="L45">        }</span>
+<span class="fc" id="L46">        return user;</span>
+    }
+
+    /**
+     * Sign a user up.
+     *
+     * @param username username
+     * @param email    email
+     * @param password password
+     * @return true if user was added, false otherwise
+     */
+    public static boolean signUp(
+        final String username, final String email, final String password
+    ) {
+<span class="fc" id="L60">        Integer userId = addUser(username, email, password);</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">        boolean added = userId != null;</span>
+<span class="fc bfc" id="L62" title="All 2 branches covered.">        if (!added) {</span>
+<span class="fc" id="L63">            return false;</span>
+        }
+        // check for successful creation
+<span class="fc" id="L66">        return usernameExists(username);</span>
+    }
+
+    /**
+     * Insert a user into the database.
+     * @param username username
+     * @param email email
+     * @param password password
+     * @return user id if user was added, null otherwise
+     */
+    public static @Nullable Integer addUser(
+        final String username, final String email, final String password
+    ) {
+        // ensure username, email are unique
+<span class="fc bfc" id="L80" title="All 4 branches covered.">        if (usernameExists(username) || emailExists(email)) {</span>
+<span class="fc" id="L81">            return null;</span>
+        }
+
+<span class="fc" id="L84">        Integer userId = null;</span>
+        try (
+<span class="fc" id="L86">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L87">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;INSERT INTO users (Username, Email, Password) VALUES (?,?,?)&quot;,
+                Statement.RETURN_GENERATED_KEYS
+            )
+        ) {
+<span class="fc" id="L92">            String[] values = {username, email, password};</span>
+<span class="fc bfc" id="L93" title="All 2 branches covered.">            for (int i = 1; i &lt;= values.length; i++) {</span>
+<span class="fc" id="L94">                pst.setString(i, values[i - 1]);</span>
+            }
+<span class="fc" id="L96">            pst.executeUpdate();</span>
+<span class="fc" id="L97">            ResultSet rs = pst.getGeneratedKeys();</span>
+<span class="fc bfc" id="L98" title="All 2 branches covered.">            if (rs.next()) {</span>
+<span class="fc" id="L99">                userId = rs.getInt(1);</span>
+            }
+<span class="fc" id="L101">        } catch (SQLException e) {</span>
+<span class="fc" id="L102">            return null;</span>
+<span class="fc" id="L103">        }</span>
+<span class="fc" id="L104">        return userId;</span>
+    }
+
+    /**
+     * Check if a user exists by id.
+     * @param uid user id
+     * @return true if user exists, false otherwise
+     */
+    public static boolean userExists(final int uid) {
+<span class="fc" id="L113">        boolean exists = false;</span>
+        try (
+<span class="fc" id="L115">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L116">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;SELECT EXISTS (SELECT 1 FROM users WHERE uid=?)&quot;
+            )
+        ) {
+<span class="fc" id="L120">            pst.setInt(1, uid);</span>
+<span class="fc" id="L121">            ResultSet rs = pst.executeQuery();</span>
+<span class="fc bfc" id="L122" title="All 2 branches covered.">            if (rs.next()) {</span>
+<span class="fc" id="L123">                exists = rs.getBoolean(1);</span>
+            }
+<span class="fc" id="L125">        } catch (SQLException e) {</span>
+<span class="fc" id="L126">            return false;</span>
+<span class="fc" id="L127">        }</span>
+<span class="fc" id="L128">        return exists;</span>
+    }
+
+    /**
+     * Check if a username exists.
+     * @param username username
+     * @return true if username exists, false otherwise
+     */
+    static boolean usernameExists(final @NotNull String username) {
+<span class="fc" id="L137">        boolean exists = false;</span>
+        try (
+<span class="fc" id="L139">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L140">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;SELECT EXISTS (SELECT 1 FROM users WHERE username=?)&quot;
+            )
+        ) {
+<span class="fc" id="L144">            pst.setString(1, username);</span>
+<span class="fc" id="L145">            ResultSet rs = pst.executeQuery();</span>
+<span class="fc bfc" id="L146" title="All 2 branches covered.">            if (rs.next()) {</span>
+<span class="fc" id="L147">                exists = rs.getBoolean(1);</span>
+            }
+<span class="fc" id="L149">        } catch (SQLException e) {</span>
+<span class="fc" id="L150">            return false;</span>
+<span class="fc" id="L151">        }</span>
+<span class="fc" id="L152">        return exists;</span>
+    }
+
+    /**
+     * Check if an email exists.
+     * @param email email
+     * @return true if email exists, false otherwise
+     */
+    static boolean emailExists(final String email) {
+<span class="fc" id="L161">        boolean exists = false;</span>
+        try (
+<span class="fc" id="L163">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L164">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;SELECT EXISTS (SELECT 1 FROM users WHERE email=?)&quot;
+            )
+        ) {
+<span class="fc" id="L168">            pst.setString(1, email);</span>
+<span class="fc" id="L169">            ResultSet rs = pst.executeQuery();</span>
+<span class="fc bfc" id="L170" title="All 2 branches covered.">            if (rs.next()) {</span>
+<span class="fc" id="L171">                exists = rs.getBoolean(1);</span>
+            }
+<span class="fc" id="L173">        } catch (SQLException e) {</span>
+<span class="fc" id="L174">            return false;</span>
+<span class="fc" id="L175">        }</span>
+<span class="fc" id="L176">        return exists;</span>
+    }
+
+    /**
+     * Get a user's ID from their username.
+     * @param username username
+     * @return user ID
+     */
+    public static @Nullable Integer getUserIDFromUsername(
+        final String username
+    ) {
+<span class="fc" id="L187">        Integer uid = null;</span>
+        try (
+<span class="fc" id="L189">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L190">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;SELECT uid FROM users WHERE username=?&quot;
+            )
+        ) {
+<span class="fc" id="L194">            pst.setString(1, username);</span>
+<span class="fc" id="L195">            ResultSet rs = pst.executeQuery();</span>
+<span class="fc bfc" id="L196" title="All 2 branches covered.">            if (rs.next()) {</span>
+<span class="fc" id="L197">                uid = rs.getInt(&quot;uid&quot;);</span>
+            }
+<span class="fc" id="L199">        } catch (SQLException e) {</span>
+<span class="fc" id="L200">            return null;</span>
+<span class="fc" id="L201">        }</span>
+<span class="fc" id="L202">        return uid;</span>
+    }
+
+    /**
+     * Get a user's ID from their email.
+     * @param email email
+     * @return user ID
+     */
+    static Integer getUserIDFromEmail(final String email) {
+<span class="fc" id="L211">        Integer uid = null;</span>
+        try (
+<span class="fc" id="L213">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L214">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;SELECT UID FROM users WHERE email=?&quot;
+            )
+        ) {
+<span class="fc" id="L218">            pst.setString(1, email);</span>
+<span class="fc" id="L219">            ResultSet rs = pst.executeQuery();</span>
+<span class="fc bfc" id="L220" title="All 2 branches covered.">            if (rs.next()) {</span>
+<span class="fc" id="L221">                uid = rs.getInt(&quot;uid&quot;);</span>
+            }
+<span class="fc" id="L223">        } catch (SQLException e) {</span>
+<span class="fc" id="L224">            return null;</span>
+<span class="fc" id="L225">        }</span>
+<span class="fc" id="L226">        return uid;</span>
+    }
+
+    /**
+     * Delete a user (by user ID).
+     * @param uid user ID
+     * @return true if user was deleted, false otherwise
+     */
+    public static boolean deleteUser(final int uid) {
+        boolean deleted;
+        try (
+<span class="fc" id="L237">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L238">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;DELETE FROM users WHERE uid=?&quot;
+            )
+        ) {
+<span class="fc" id="L242">            pst.setInt(1, uid);</span>
+<span class="fc bfc" id="L243" title="All 2 branches covered.">            deleted = pst.executeUpdate() == 1;</span>
+<span class="fc" id="L244">        } catch (SQLException e) {</span>
+<span class="fc" id="L245">            return false;</span>
+<span class="fc" id="L246">        }</span>
+<span class="fc" id="L247">        return deleted;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.9.202303310957</span></div></body></html>

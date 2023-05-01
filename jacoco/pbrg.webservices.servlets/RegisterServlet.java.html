@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RegisterServlet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">webservices</a> &gt; <a href="index.source.html" class="el_package">pbrg.webservices.servlets</a> &gt; <span class="el_source">RegisterServlet.java</span></div><h1>RegisterServlet.java</h1><pre class="source lang-java linenums">package pbrg.webservices.servlets;
+
+import static pbrg.webservices.database.AuthenticationController.signIn;
+import static pbrg.webservices.database.AuthenticationController.signUp;
+
+import com.google.gson.Gson;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import java.io.IOException;
+import org.jetbrains.annotations.NotNull;
+import org.json.JSONObject;
+import pbrg.webservices.models.User;
+
+<span class="fc" id="L16">@WebServlet(name = &quot;RegisterServlet&quot;, urlPatterns = &quot;/Register&quot;)</span>
+<span class="fc" id="L17">public class RegisterServlet extends MyHttpServlet {</span>
+
+    @Override
+    protected final void doGet(
+        final @NotNull HttpServletRequest request,
+        final @NotNull HttpServletResponse response
+    ) throws IOException {
+<span class="fc" id="L24">        doPost(request, response);</span>
+<span class="fc" id="L25">    }</span>
+
+    @Override
+    protected final void doPost(
+        final @NotNull HttpServletRequest request,
+        final @NotNull HttpServletResponse response
+    ) throws IOException {
+        // validate request
+<span class="fc" id="L33">        boolean requiresSession = false;</span>
+<span class="fc" id="L34">        String[] sessionAttributes = {};</span>
+<span class="fc" id="L35">        String usernameKey = &quot;username&quot;;</span>
+<span class="fc" id="L36">        String emailKey = &quot;email&quot;;</span>
+<span class="fc" id="L37">        String passwordKey = &quot;password&quot;;</span>
+<span class="fc" id="L38">        JSONObject body = getBodyAsJson(request);</span>
+<span class="fc" id="L39">        String[] bodyAttributes = {usernameKey, emailKey, passwordKey};</span>
+<span class="fc bfc" id="L40" title="All 2 branches covered.">        if (!validateRequest(</span>
+            request, response, body, requiresSession,
+            sessionAttributes, bodyAttributes
+        )) {
+<span class="fc" id="L44">            return;</span>
+        }
+
+        // store credentials
+<span class="pc bpc" id="L48" title="1 of 2 branches missed.">        assert body != null;</span>
+<span class="fc" id="L49">        String username = body.getString(usernameKey);</span>
+<span class="fc" id="L50">        String email = body.getString(emailKey);</span>
+<span class="fc" id="L51">        String password = body.getString(passwordKey);</span>
+
+        // create new user; ensure user was added
+<span class="fc" id="L54">        boolean added = signUp(username, email, password);</span>
+<span class="fc bfc" id="L55" title="All 2 branches covered.">        if (!added) {</span>
+<span class="fc" id="L56">            response.sendError(</span>
+                HttpServletResponse.SC_EXPECTATION_FAILED,
+                &quot;Failed to sign-up user&quot;
+            );
+<span class="fc" id="L60">            return;</span>
+        }
+
+        // select user
+<span class="fc" id="L64">        User user = signIn(username, password);</span>
+<span class="pc bpc" id="L65" title="1 of 2 branches missed.">        assert user != null;</span>
+
+        // store user id in session
+<span class="fc" id="L68">        HttpSession session = request.getSession();</span>
+<span class="fc" id="L69">        session.setAttribute(&quot;uid&quot;, user.getUid());</span>
+
+        // return the user object as json
+<span class="fc" id="L72">        String json = new Gson().toJson(user);</span>
+<span class="fc" id="L73">        response.setContentType(&quot;application/json&quot;);</span>
+<span class="fc" id="L74">        response.setCharacterEncoding(&quot;UTF-8&quot;);</span>
+<span class="fc" id="L75">        response.getWriter().write(json);</span>
+
+        // report success
+<span class="fc" id="L78">        response.setStatus(HttpServletResponse.SC_OK);</span>
+<span class="fc" id="L79">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.9.202303310957</span></div></body></html>

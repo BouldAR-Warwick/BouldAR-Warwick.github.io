@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProductionDatabase.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">webservices</a> &gt; <a href="index.source.html" class="el_package">pbrg.webservices.database</a> &gt; <span class="el_source">ProductionDatabase.java</span></div><h1>ProductionDatabase.java</h1><pre class="source lang-java linenums">package pbrg.webservices.database;
+
+import java.util.Properties;
+import javax.naming.Context;
+import javax.naming.InitialContext;
+import javax.naming.NamingException;
+import javax.sql.DataSource;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
+
+public final class ProductionDatabase {
+
+    /** Static class, no need to instantiate. */
+<span class="fc" id="L14">    private ProductionDatabase() {</span>
+<span class="fc" id="L15">        throw new IllegalStateException(&quot;Utility class&quot;);</span>
+    }
+
+    /** The initial context. */
+    private static InitialContext initialContext;
+
+    static {
+        // Set the initial context to the default one
+<span class="fc" id="L23">        setInitialContext(getDefaultContext());</span>
+<span class="fc" id="L24">    }</span>
+
+    /**
+     * Get the default initial context.
+     * @return The default initial context
+     */
+    @Contract(&quot; -&gt; new&quot;)
+    static @NotNull InitialContext getDefaultContext() {
+<span class="fc" id="L32">        return getDefaultContext(null);</span>
+    }
+
+    /**
+     * Get the initial context with an environment.
+     * @param environment The environment
+     * @return The default initial context
+     */
+    @Contract(&quot;_ -&gt; new&quot;)
+    static @NotNull InitialContext getDefaultContext(
+        final Properties environment
+    ) {
+        try {
+<span class="fc" id="L45">            return new InitialContext(environment);</span>
+<span class="fc" id="L46">        } catch (NamingException e) {</span>
+<span class="fc" id="L47">            throw new RuntimeException(e);</span>
+        }
+    }
+
+    /**
+     * Set the initial context.
+     * @param newInitialContext The initial context (not null)
+     */
+    public static void setInitialContext(
+        final InitialContext newInitialContext
+    ) {
+<span class="fc bfc" id="L58" title="All 2 branches covered.">        if (newInitialContext == null) {</span>
+<span class="fc" id="L59">            throw new IllegalArgumentException(</span>
+                &quot;initialContext cannot be null&quot;
+            );
+        }
+<span class="fc" id="L63">        ProductionDatabase.initialContext = newInitialContext;</span>
+<span class="fc" id="L64">    }</span>
+
+
+    /**
+     * Check if the application is running in production.
+     * @return true if the application is running in production, else false
+     */
+    public static boolean production() {
+        try {
+<span class="fc" id="L73">            ((Context) initialContext.lookup(&quot;java:/comp/env&quot;))</span>
+<span class="fc" id="L74">                .lookup(&quot;jdbc/grabourg&quot;);</span>
+<span class="fc" id="L75">            return true;</span>
+<span class="fc" id="L76">        } catch (NamingException exception) {</span>
+<span class="fc" id="L77">            return false;</span>
+        }
+    }
+
+    /**
+     * Get the production DataSource. This method should only be called if the
+     * application is running in production.
+     * @return The production DataSource
+     */
+    public static DataSource productionDataSource() {
+        try {
+<span class="fc" id="L88">            return (DataSource) (</span>
+<span class="fc" id="L89">                (Context) initialContext.lookup(&quot;java:/comp/env&quot;)</span>
+<span class="fc" id="L90">            ).lookup(&quot;jdbc/grabourg&quot;);</span>
+<span class="fc" id="L91">        } catch (NamingException exception) {</span>
+<span class="fc" id="L92">            throw new RuntimeException(exception);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.9.202303310957</span></div></body></html>

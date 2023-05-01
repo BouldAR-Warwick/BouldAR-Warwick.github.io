@@ -1,0 +1,345 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RouteUtils.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">webservices</a> &gt; <a href="index.source.html" class="el_package">pbrg.webservices.utils</a> &gt; <span class="el_source">RouteUtils.java</span></div><h1>RouteUtils.java</h1><pre class="source lang-java linenums">package pbrg.webservices.utils;
+
+import static pbrg.webservices.database.ProductionDatabase.production;
+import static pbrg.webservices.database.RouteController.addImageToRoute;
+import static pbrg.webservices.database.RouteController.routeExists;
+import static pbrg.webservices.database.WallController.getWallImageFileNameFromRouteId;
+import static pbrg.webservices.utils.ProcessUtils.runProcessEnsureSuccess;
+import static pbrg.webservices.utils.ProcessUtils.runProcessGetOutputEnsureSuccess;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.json.JSONArray;
+import org.json.JSONException;
+import pbrg.webservices.database.RouteController;
+import pbrg.webservices.models.RouteFull;
+
+public final class RouteUtils {
+
+    static {
+        // set the python scripts directory based on environment
+<span class="fc" id="L25">        resetPythonScriptsDirectory();</span>
+    }
+
+    /** The path to the python scripts directory. */
+    private static String pythonScriptsDir;
+
+    /** The file name for the route generation script. */
+<span class="fc" id="L32">    private static String routeGenerationScript = &quot;route-gen-moon-board.py&quot;;</span>
+
+    /** The file name for the hold plotting script. */
+<span class="fc" id="L35">    private static String holdPlottingScript = &quot;plot-holds.py&quot;;</span>
+
+    /** Util class, no instances. */
+<span class="fc" id="L38">    private RouteUtils() {</span>
+<span class="fc" id="L39">        throw new IllegalStateException(&quot;Utility class&quot;);</span>
+    }
+
+    /**
+     * Reset the python scripts directory based on environment.
+     */
+    public static void resetPythonScriptsDirectory() {
+<span class="fc" id="L46">        setPythonScriptsDir(production());</span>
+<span class="fc" id="L47">    }</span>
+
+    /**
+     * Set the hold plotting script.
+     * @param script the hold plotting script
+     */
+    public static void setHoldPlottingScript(final String script) {
+<span class="fc" id="L54">        holdPlottingScript = script;</span>
+<span class="fc" id="L55">    }</span>
+
+    /**
+     * Get the hold plotting script.
+     * @return the hold plotting script
+     */
+    public static String getHoldPlottingScript() {
+<span class="fc" id="L62">        return holdPlottingScript;</span>
+    }
+
+    /**
+     * Configure the route generation script.
+     * @param script the route generation script
+     */
+    public static void setRouteGenerationScript(final String script) {
+<span class="fc" id="L70">        routeGenerationScript = script;</span>
+<span class="fc" id="L71">    }</span>
+
+    /**
+     * Get the route generation script.
+     * @return the route generation script
+     */
+    public static String getRouteGenerationScript() {
+<span class="fc" id="L78">        return routeGenerationScript;</span>
+    }
+
+    /**
+     * Set the python scripts directory based on the environment.
+     * @param inProduction true if in production, false otherwise
+     */
+    public static void setPythonScriptsDir(final boolean inProduction) {
+        // if in production
+<span class="fc bfc" id="L87" title="All 2 branches covered.">        if (inProduction) {</span>
+<span class="fc" id="L88">            pythonScriptsDir = System.getProperty(&quot;user.home&quot;)</span>
+                + &quot;/Projects/services/scripts/python/&quot;;
+<span class="fc" id="L90">            return;</span>
+        }
+
+        // otherwise in test
+<span class="fc" id="L94">        pythonScriptsDir = System.getProperty(&quot;user.dir&quot;) + &quot;/scripts/python/&quot;;</span>
+<span class="fc" id="L95">    }</span>
+
+    /**
+     * Set the path to the python scripts directory.
+     * @param dir path to the python scripts directory
+     */
+    static void setPythonScriptsDir(final String dir) {
+<span class="fc" id="L102">        pythonScriptsDir = dir;</span>
+<span class="fc" id="L103">    }</span>
+
+    /**
+     * Get the path to the python scripts directory.
+     * @return path to the python scripts directory
+     */
+    static String getPythonScriptsDir() {
+<span class="fc" id="L110">        return pythonScriptsDir;</span>
+    }
+
+    /**
+     * Generate a route on a 2016 MoonBoard.
+     * @param grade grade
+     * @return route as a JSON object of holds
+     */
+    @Contract(&quot;_ -&gt; new&quot;)
+    public static @NotNull JSONArray generateRouteMoonBoard(final int grade)
+        throws IOException {
+        // path is working dir + python-scripts/plot-holds.py
+<span class="fc" id="L122">        File pythonFile = new File(</span>
+<span class="fc" id="L123">            getPythonScriptsDir(), getRouteGenerationScript()</span>
+        );
+
+        // ensure file exists
+<span class="fc bfc" id="L127" title="All 2 branches covered.">        if (!pythonFile.exists()) {</span>
+<span class="fc" id="L128">            throw new IOException(</span>
+                &quot;Python script &quot; + pythonFile + &quot; does not exist&quot;
+            );
+        }
+
+<span class="fc" id="L133">        ProcessBuilder pb = new ProcessBuilder(</span>
+            &quot;python3&quot;,
+<span class="fc" id="L135">            pythonFile.toString(),</span>
+<span class="fc" id="L136">            String.valueOf(grade)</span>
+        );
+
+        // run py script, collect results
+        // comma separated list of coordinates (hold positions to be used)
+<span class="fc" id="L141">        StringBuilder output = runProcessGetOutputEnsureSuccess(pb);</span>
+<span class="fc" id="L142">        String result = output.toString();</span>
+
+        // return route - parse result as a json object
+<span class="fc" id="L145">        return new JSONArray(result);</span>
+    }
+
+    /**
+     * Create a 2D route image by highlighting holds on a wall \
+     * with a Python script.
+     * @param routeId route ID
+     * @return file name of the route image
+     */
+    public static @Nullable String createRouteImagePython(
+        final int routeId
+    ) {
+        // ensure the route exists
+<span class="fc bfc" id="L158" title="All 2 branches covered.">        if (!routeExists(routeId)) {</span>
+<span class="fc" id="L159">            return null;</span>
+        }
+
+        // note every route has a wall
+
+        // load the wall image file
+<span class="fc" id="L165">        String wallImageFileName = getWallImageFileNameFromRouteId(routeId);</span>
+<span class="pc bpc" id="L166" title="1 of 2 branches missed.">        assert wallImageFileName != null;</span>
+
+        // Parse the JSON string into a JSON array
+<span class="fc" id="L169">        JSONArray holdArray = getRouteContentJSONArray(routeId);</span>
+<span class="fc bfc" id="L170" title="All 2 branches covered.">        if (holdArray == null) {</span>
+            // route has no holds
+<span class="fc" id="L172">            return null;</span>
+        }
+
+        // plot holds on image by calling python script
+        String routeFileName;
+        try {
+<span class="fc" id="L178">            routeFileName = plotHoldsOnImagePython(</span>
+                routeId, wallImageFileName,
+<span class="fc" id="L180">                ServletUtils.getWallImagePath(),</span>
+<span class="fc" id="L181">                ServletUtils.getRouteImagePath(),</span>
+                holdArray
+            );
+<span class="fc" id="L184">        } catch (IOException e) {</span>
+<span class="fc" id="L185">            return null;</span>
+<span class="fc" id="L186">        }</span>
+<span class="fc" id="L187">        return routeFileName;</span>
+    }
+
+    /**
+     * Create and store a route image for a route by id.
+     * @param routeId route id
+     * @return true if successful, false otherwise
+     */
+    public static boolean createAndStoreRouteImage(final int routeId) {
+        // ensure the route exists
+<span class="fc bfc" id="L197" title="All 2 branches covered.">        if (!routeExists(routeId)) {</span>
+<span class="fc" id="L198">            return false;</span>
+        }
+
+        // note every route has a wall
+
+        // create the route image
+<span class="fc" id="L204">        String routeImageFileName = createRouteImagePython(routeId);</span>
+<span class="fc bfc" id="L205" title="All 2 branches covered.">        if (routeImageFileName == null) {</span>
+<span class="fc" id="L206">            return false;</span>
+        }
+
+        // ensure routeImageFileName exists
+<span class="fc" id="L210">        File routeImage =</span>
+<span class="fc" id="L211">            new File(ServletUtils.getRouteImagePath(), routeImageFileName);</span>
+<span class="pc bpc" id="L212" title="1 of 2 branches missed.">        assert routeImage.exists();</span>
+
+        // store the route image
+<span class="fc" id="L215">        return addImageToRoute(routeId, routeImageFileName);</span>
+    }
+
+    /**
+     * Plot holds on an image using python script plot-holds.py.
+     * @param routeId route id
+     * @param wallImageFileName wall image file name
+     * @param wallImageFilePath wall image file path
+     * @param routeImageFilePath route image file path
+     * @param holdArray json array of holds
+     * @return new file name
+     */
+    public static @NotNull String plotHoldsOnImagePython(
+        final int routeId,
+        @NotNull final String wallImageFileName,
+        @NotNull final String wallImageFilePath,
+        @NotNull final String routeImageFilePath,
+        @NotNull final JSONArray holdArray
+    ) throws IOException {
+        // path is working dir + python-scripts/plot-holds.py
+<span class="fc" id="L235">        File pythonFile = new File(</span>
+<span class="fc" id="L236">            getPythonScriptsDir(), getHoldPlottingScript()</span>
+        );
+
+        // ensure file exists
+<span class="fc bfc" id="L240" title="All 2 branches covered.">        if (!pythonFile.exists()) {</span>
+<span class="fc" id="L241">            throw new IOException(</span>
+                &quot;Python script &quot; + pythonFile + &quot; does not exist&quot;
+            );
+        }
+
+        // python script with arguments: wallImageFileName, routeID, holdArray
+<span class="fc" id="L247">        ProcessBuilder pb = new ProcessBuilder(</span>
+            &quot;python3&quot;,
+<span class="fc" id="L249">            pythonFile.toString(),</span>
+            wallImageFileName,
+            wallImageFilePath,
+            routeImageFilePath,
+<span class="fc" id="L253">            String.valueOf(routeId),</span>
+<span class="fc" id="L254">            holdArray.toString()</span>
+        );
+
+        // run hold plotting script
+<span class="fc" id="L258">        runProcessEnsureSuccess(pb);</span>
+
+        // return the file name of the route image
+<span class="fc" id="L261">        return &quot;r&quot; + routeId + &quot;-&quot; + wallImageFileName;</span>
+    }
+
+    /**
+     * Get a route's contents (list of holds) as a JSON array.
+     * @param routeId route identifier
+     * @return list of holds in JSON
+     */
+    public static @Nullable JSONArray getRouteContentJSONArray(
+        final int routeId
+    ) {
+        // ensure the route exists
+<span class="fc bfc" id="L273" title="All 2 branches covered.">        if (!routeExists(routeId)) {</span>
+<span class="fc" id="L274">            return null;</span>
+        }
+<span class="fc" id="L276">        String routeContent = RouteController.getRouteContent(routeId);</span>
+<span class="pc bpc" id="L277" title="1 of 2 branches missed.">        assert routeContent != null;</span>
+        try {
+<span class="fc" id="L279">            return new JSONArray(routeContent);</span>
+<span class="fc" id="L280">        } catch (JSONException e) {</span>
+<span class="fc" id="L281">            return null;</span>
+        }
+    }
+
+    /**
+     * Returns a route image file name for a given route id.
+     *
+     * @param routeId the route id of the route
+     * @return the route image file name
+     */
+    public static @Nullable String getRouteImageFileName(
+        final int routeId
+    ) {
+        // ensure the route exists
+<span class="fc bfc" id="L295" title="All 2 branches covered.">        if (!routeExists(routeId)) {</span>
+<span class="fc" id="L296">            return null;</span>
+        }
+<span class="fc" id="L298">        RouteFull route = RouteController.getRouteByRouteId(routeId);</span>
+<span class="pc bpc" id="L299" title="1 of 2 branches missed.">        assert route != null;</span>
+<span class="fc" id="L300">        return route.getImageFileName();</span>
+    }
+
+    /**
+     * Delete a route by its id (including its image file).
+     * @param routeId route id
+     */
+    public static void deleteRoute(final int routeId) {
+        // ensure route exists
+<span class="fc bfc" id="L309" title="All 2 branches covered.">        if (!routeExists(routeId)) {</span>
+<span class="fc" id="L310">            return;</span>
+        }
+
+<span class="fc" id="L313">        String routeImageFileName = getRouteImageFileName(routeId);</span>
+<span class="fc bfc" id="L314" title="All 2 branches covered.">        boolean routeImageGenerated = routeImageFileName != null;</span>
+
+        // remove route image if it exists, do nothing if it doesn't exist
+<span class="fc bfc" id="L317" title="All 2 branches covered.">        if (routeImageGenerated) {</span>
+<span class="fc" id="L318">            deleteRouteImage(routeImageFileName);</span>
+<span class="pc" id="L319">            assert !new File(ServletUtils.getRouteImagePath(),</span>
+<span class="pc bpc" id="L320" title="1 of 2 branches missed.">                routeImageFileName).exists();</span>
+        }
+
+        // remove from database
+<span class="fc" id="L324">        RouteController.deleteRoute(routeId);</span>
+<span class="fc" id="L325">    }</span>
+
+    /**
+     * Delete a route image file. Does nothing if the file does not exist.
+     * @param routeImageFileName route image file name
+     */
+    private static void deleteRouteImage(final String routeImageFileName) {
+        // create the file system path
+<span class="fc" id="L333">        File routeImageFile = new File(</span>
+<span class="fc" id="L334">            ServletUtils.getRouteImagePath(), routeImageFileName</span>
+        );
+
+        try {
+            // delete the file
+<span class="fc" id="L339">            Files.delete(routeImageFile.toPath());</span>
+<span class="fc" id="L340">        } catch (IOException e) {</span>
+            // IOException -&gt; file does not exist
+<span class="fc" id="L342">        }</span>
+<span class="fc" id="L343">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.9.202303310957</span></div></body></html>

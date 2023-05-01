@@ -1,0 +1,292 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RouteController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">webservices</a> &gt; <a href="index.source.html" class="el_package">pbrg.webservices.database</a> &gt; <span class="el_source">RouteController.java</span></div><h1>RouteController.java</h1><pre class="source lang-java linenums">package pbrg.webservices.database;
+
+import static pbrg.webservices.database.DatabaseController.getDataSource;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import pbrg.webservices.models.Route;
+import pbrg.webservices.models.RouteFull;
+
+public final class RouteController {
+
+    /** Static class, no need to instantiate. */
+<span class="fc" id="L20">    private RouteController() {</span>
+<span class="fc" id="L21">        throw new IllegalStateException(&quot;Utility class&quot;);</span>
+    }
+
+    /**
+     * Get a list of routes in a gym, created by a user.
+     *
+     * @param gymId  gym ID
+     * @param userId creator user ID
+     * @return list of routes
+     */
+    public static @NotNull List&lt;Route&gt; getRoutesInGymMadeByUser(
+        final int gymId, final int userId
+    ) {
+<span class="fc" id="L34">        List&lt;@NotNull Route&gt; routes = new ArrayList&lt;&gt;();</span>
+        try (
+<span class="fc" id="L36">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L37">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;SELECT * &quot;
+                    + &quot;FROM routes &quot;
+                    + &quot;INNER JOIN walls ON routes.WID = walls.WID &quot;
+                    + &quot;INNER JOIN gyms ON walls.GID = gyms.GID &quot;
+                    + &quot;WHERE gyms.GID = ? AND routes.creator_user_id = ?&quot;
+            )
+        ) {
+<span class="fc" id="L45">            pst.setInt(1, gymId);</span>
+<span class="fc" id="L46">            pst.setInt(2, userId);</span>
+
+<span class="fc" id="L48">            ResultSet rs = pst.executeQuery();</span>
+<span class="fc bfc" id="L49" title="All 2 branches covered.">            while (rs.next()) {</span>
+<span class="fc" id="L50">                routes.add(new Route(</span>
+<span class="fc" id="L51">                    rs.getInt(&quot;RID&quot;),</span>
+<span class="fc" id="L52">                    rs.getInt(&quot;Difficulty&quot;),</span>
+<span class="fc" id="L53">                    &quot;Route #&quot; + rs.getInt(&quot;RID&quot;)</span>
+                ));
+            }
+<span class="fc" id="L56">        } catch (SQLException e) {</span>
+<span class="fc" id="L57">            return routes;</span>
+<span class="fc" id="L58">        }</span>
+<span class="fc" id="L59">        return routes;</span>
+    }
+
+    /**
+     * Get a route by its ID.
+     * @param routeId route ID
+     * @return route
+     */
+    public static RouteFull getRouteByRouteId(
+        final int routeId
+    ) {
+<span class="fc" id="L70">        RouteFull route = null;</span>
+        try (
+<span class="fc" id="L72">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L73">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;SELECT * &quot;
+                    + &quot;FROM routes &quot;
+                    + &quot;WHERE routes.RID = ?&quot;
+            )
+        ) {
+<span class="fc" id="L79">            pst.setInt(1, routeId);</span>
+
+<span class="fc" id="L81">            ResultSet rs = pst.executeQuery();</span>
+<span class="fc bfc" id="L82" title="All 2 branches covered.">            if (rs.next()) {</span>
+<span class="fc" id="L83">                route = new RouteFull(</span>
+<span class="fc" id="L84">                    rs.getInt(&quot;RID&quot;),</span>
+<span class="fc" id="L85">                    rs.getInt(&quot;WID&quot;),</span>
+<span class="fc" id="L86">                    rs.getInt(&quot;creator_user_id&quot;),</span>
+<span class="fc" id="L87">                    rs.getInt(&quot;Difficulty&quot;),</span>
+<span class="fc" id="L88">                    rs.getString(&quot;route_content&quot;),</span>
+<span class="fc" id="L89">                    rs.getString(&quot;image_file_name&quot;)</span>
+                );
+            }
+<span class="fc" id="L92">        } catch (SQLException e) {</span>
+<span class="fc" id="L93">            return null;</span>
+<span class="fc" id="L94">        }</span>
+<span class="fc" id="L95">        return route;</span>
+    }
+
+    /**
+     * Check if a user, by ID, has created a route, by ID.
+     *
+     * @param userId  creator user ID
+     * @param routeId route ID
+     * @return user has created route
+     */
+    public static boolean userOwnsRoute(
+        final int userId, final int routeId
+    ) {
+<span class="fc" id="L108">        boolean ownsRoute = false;</span>
+        try (
+<span class="fc" id="L110">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L111">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;SELECT EXISTS(&quot;
+                    + &quot;SELECT 1 FROM routes &quot;
+                    + &quot;WHERE routes.RID=? AND routes.creator_user_id = ?&quot;
+                    + &quot;)&quot;
+            )
+        ) {
+<span class="fc" id="L118">            pst.setInt(1, routeId);</span>
+<span class="fc" id="L119">            pst.setInt(2, userId);</span>
+<span class="fc" id="L120">            ResultSet rs = pst.executeQuery();</span>
+<span class="fc bfc" id="L121" title="All 2 branches covered.">            if (rs.next()) {</span>
+<span class="fc" id="L122">                ownsRoute = rs.getBoolean(1);</span>
+            }
+<span class="fc" id="L124">        } catch (SQLException e) {</span>
+<span class="fc" id="L125">            return false;</span>
+<span class="fc" id="L126">        }</span>
+<span class="fc" id="L127">        return ownsRoute;</span>
+    }
+
+    /**
+     * Check if a route, by ID, exists.
+     * @param routeId route ID
+     * @return route exists
+     */
+    public static boolean routeExists(
+        final int routeId
+    ) {
+<span class="fc" id="L138">        boolean exists = false;</span>
+        try (
+<span class="fc" id="L140">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L141">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;SELECT EXISTS(&quot;
+                    + &quot;SELECT 1 FROM routes &quot;
+                    + &quot;WHERE routes.RID=?&quot;
+                    + &quot;)&quot;
+            )
+        ) {
+<span class="fc" id="L148">            pst.setInt(1, routeId);</span>
+<span class="fc" id="L149">            ResultSet rs = pst.executeQuery();</span>
+<span class="fc bfc" id="L150" title="All 2 branches covered.">            if (rs.next()) {</span>
+<span class="fc" id="L151">                exists = rs.getBoolean(1);</span>
+            }
+<span class="fc" id="L153">        } catch (SQLException e) {</span>
+<span class="fc" id="L154">            return false;</span>
+<span class="fc" id="L155">        }</span>
+<span class="fc" id="L156">        return exists;</span>
+    }
+
+    /**
+     * Get a route's contents (list of holds) as a String.
+     * @param routeId route identifier
+     * @return list of holds in JSON
+     */
+    public static @Nullable String getRouteContent(
+        final int routeId
+    ) {
+<span class="fc" id="L167">        String holds = null;</span>
+        try (
+<span class="fc" id="L169">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L170">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;SELECT routes.route_content &quot;
+                    + &quot;FROM routes &quot;
+                    + &quot;WHERE RID = ?&quot;
+            )
+        ) {
+<span class="fc" id="L176">            pst.setInt(1, routeId);</span>
+<span class="fc" id="L177">            ResultSet rs = pst.executeQuery();</span>
+
+            // get JSON list of holds
+<span class="fc bfc" id="L180" title="All 2 branches covered.">            if (rs.next()) {</span>
+<span class="fc" id="L181">                holds = rs.getString(&quot;route_content&quot;);</span>
+            }
+<span class="fc" id="L183">        } catch (SQLException e) {</span>
+<span class="fc" id="L184">            return null;</span>
+<span class="fc" id="L185">        }</span>
+<span class="fc" id="L186">        return holds;</span>
+    }
+
+    /**
+     * Create a new route (without image) in the database.
+     * @param routeContent route content (list of holds)
+     * @param difficulty route difficulty
+     * @param creatorUserId creator user identifier
+     * @param wallId wall identifier
+     * @return route identifier
+     */
+    public static Integer addRoute(
+        final String routeContent, final int difficulty,
+        final int creatorUserId, final int wallId
+    ) {
+<span class="fc" id="L201">        Integer routeId = null;</span>
+        try (
+<span class="fc" id="L203">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L204">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;INSERT INTO routes &quot;
+                    + &quot;(route_content, difficulty, creator_user_id, WID) &quot;
+                    + &quot;VALUES (?, ?, ?, ?) &quot;,
+                Statement.RETURN_GENERATED_KEYS
+            )
+        ) {
+<span class="fc" id="L211">            Object[] values =</span>
+<span class="fc" id="L212">                {routeContent, difficulty, creatorUserId, wallId};</span>
+<span class="fc" id="L213">            String[] types = {&quot;String&quot;, &quot;int&quot;, &quot;int&quot;, &quot;int&quot;};</span>
+
+<span class="fc bfc" id="L215" title="All 2 branches covered.">            for (int i = 0; i &lt; values.length; i++) {</span>
+<span class="fc" id="L216">                Object value = values[i];</span>
+<span class="fc" id="L217">                String type = types[i];</span>
+
+<span class="fc bfc" id="L219" title="All 2 branches covered.">                if (type.equals(&quot;String&quot;)) {</span>
+<span class="fc" id="L220">                    pst.setString(i + 1, (String) value);</span>
+                } else {
+<span class="fc" id="L222">                    pst.setInt(i + 1, (int) value);</span>
+                }
+            }
+<span class="fc" id="L225">            pst.executeUpdate();</span>
+<span class="fc" id="L226">            ResultSet rs = pst.getGeneratedKeys();</span>
+
+<span class="fc bfc" id="L228" title="All 2 branches covered.">            if (rs.next()) {</span>
+                // the route ID
+<span class="fc" id="L230">                routeId = rs.getInt(1);</span>
+            }
+<span class="fc" id="L232">        } catch (SQLException e) {</span>
+<span class="fc" id="L233">            return null;</span>
+<span class="fc" id="L234">        }</span>
+<span class="fc" id="L235">        return routeId;</span>
+    }
+
+    /**
+     * Add a route image to an existing route.
+     * @param routeId route identifier
+     * @param imageFileName route image file name
+     * @return true if image was added, false otherwise
+     */
+    public static boolean addImageToRoute(
+        final int routeId, final String imageFileName
+    ) {
+        boolean updated;
+        try (
+<span class="fc" id="L249">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L250">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;UPDATE routes &quot;
+                    + &quot;SET image_file_name = ? &quot;
+                    + &quot;WHERE RID = ?&quot;
+            )
+        ) {
+<span class="fc" id="L256">            pst.setString(1, imageFileName);</span>
+<span class="fc" id="L257">            pst.setInt(2, routeId);</span>
+
+            // the number of rows affected by the update query
+<span class="fc" id="L260">            int rowsAffected = pst.executeUpdate();</span>
+<span class="fc bfc" id="L261" title="All 2 branches covered.">            updated = rowsAffected &gt; 0;</span>
+<span class="fc" id="L262">        } catch (SQLException e) {</span>
+<span class="fc" id="L263">            return false;</span>
+<span class="fc" id="L264">        }</span>
+<span class="fc" id="L265">        return updated;</span>
+    }
+
+    /**
+     * Delete a route from the database only.
+     * Note does NOT delete the route image.
+     * @param routeId route identifier
+     * @return true if route was deleted, false otherwise
+     */
+    public static boolean deleteRoute(
+        final int routeId
+    ) {
+        boolean removed;
+        try (
+<span class="fc" id="L279">            Connection connection = getDataSource().getConnection();</span>
+<span class="fc" id="L280">            PreparedStatement pst = connection.prepareStatement(</span>
+                &quot;DELETE FROM routes WHERE rid = ?&quot;
+            )
+        ) {
+<span class="fc" id="L284">            pst.setInt(1, routeId);</span>
+<span class="fc bfc" id="L285" title="All 2 branches covered.">            removed = pst.executeUpdate() &gt; 0;</span>
+<span class="fc" id="L286">        } catch (SQLException e) {</span>
+<span class="fc" id="L287">            return false;</span>
+<span class="fc" id="L288">        }</span>
+<span class="fc" id="L289">        return removed;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.9.202303310957</span></div></body></html>

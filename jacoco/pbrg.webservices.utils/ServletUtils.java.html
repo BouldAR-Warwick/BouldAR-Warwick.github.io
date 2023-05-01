@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ServletUtils.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">webservices</a> &gt; <a href="index.source.html" class="el_package">pbrg.webservices.utils</a> &gt; <span class="el_source">ServletUtils.java</span></div><h1>ServletUtils.java</h1><pre class="source lang-java linenums">package pbrg.webservices.utils;
+
+import static org.apache.commons.io.FilenameUtils.getExtension;
+import static pbrg.webservices.database.ProductionDatabase.production;
+
+import java.io.IOException;
+import java.io.FileInputStream;
+import java.io.OutputStream;
+import java.util.Map;
+import jakarta.servlet.http.HttpServletResponse;
+import org.jetbrains.annotations.NotNull;
+
+/**
+ * For servlet utils: file path utils, API utils (bitmap returns).
+ */
+public final class ServletUtils {
+
+    static {
+<span class="fc" id="L19">        setPaths();</span>
+    }
+
+    /** The path to the wall images directory. */
+    private static String wallImagePath;
+
+    /** The path to the route images directory. */
+    private static String routeImagePath;
+
+    /**
+     * Get the path to the wall images directory.
+     * @return the path to the wall images directory
+     */
+    public static String getWallImagePath() {
+<span class="fc" id="L33">        return wallImagePath;</span>
+    }
+
+    /**
+     * Set the path to the wall images directory.
+     * @param path the path to the wall images directory
+     */
+    public static void setWallImagePath(final String path) {
+<span class="fc" id="L41">        wallImagePath = path;</span>
+<span class="fc" id="L42">    }</span>
+
+    /**
+     * Get the path to the route images directory.
+     * @return the path to the route images directory
+     */
+    public static String getRouteImagePath() {
+<span class="fc" id="L49">        return routeImagePath;</span>
+    }
+
+    /**
+     * Set the path to the route images directory.
+     * @param path the path to the route images directory
+     */
+    public static void setRouteImagePath(final String path) {
+<span class="fc" id="L57">        routeImagePath = path;</span>
+<span class="fc" id="L58">    }</span>
+
+    /** Set the image paths according to the environment. */
+    public static void setPaths() {
+<span class="fc" id="L62">        setPaths(production());</span>
+<span class="fc" id="L63">    }</span>
+
+    /**
+     * Set the image paths.
+     * @param inProduction true if in production, false otherwise
+     */
+    public static void setPaths(final boolean inProduction) {
+        // if in production
+<span class="fc bfc" id="L71" title="All 2 branches covered.">        if (inProduction) {</span>
+<span class="fc" id="L72">            wallImagePath = System.getProperty(&quot;user.home&quot;)</span>
+                + &quot;/Projects/services/src/main/resources/&quot;;
+<span class="fc" id="L74">            routeImagePath = System.getProperty(&quot;user.home&quot;)</span>
+                + &quot;/Projects/services/src/main/resources/&quot;;
+<span class="fc" id="L76">            return;</span>
+        }
+
+        // otherwise in test
+<span class="fc" id="L80">        wallImagePath = System.getProperty(&quot;user.dir&quot;)</span>
+            + &quot;/src/main/resources/&quot;;
+<span class="fc" id="L82">        routeImagePath = System.getProperty(&quot;user.dir&quot;)</span>
+            + &quot;/src/main/resources/&quot;;
+<span class="fc" id="L84">    }</span>
+
+    /**
+     * Map from file extensions to content types.
+     * unsupported:
+     * image/gif, image/tiff, image/vnd.microsoft.icon
+     * image/x-icon, image/vnd.djvu, image/svg+xml
+     */
+<span class="fc" id="L92">    private static final Map&lt;String, String&gt; CONTENT_TYPE_MAP =</span>
+<span class="fc" id="L93">        Map.ofEntries(</span>
+<span class="fc" id="L94">            Map.entry(&quot;jpg&quot;, &quot;image/jpeg&quot;),</span>
+<span class="fc" id="L95">            Map.entry(&quot;jpeg&quot;, &quot;image/jpeg&quot;),</span>
+<span class="fc" id="L96">            Map.entry(&quot;png&quot;, &quot;image/png&quot;)</span>
+        );
+
+    /**
+     * Seven days.
+     */
+    public static final int SEVEN_DAYS = 7;
+
+    /** Static class, no need to instantiate. */
+<span class="fc" id="L105">    private ServletUtils() {</span>
+<span class="fc" id="L106">        throw new IllegalStateException(&quot;Utility class&quot;);</span>
+    }
+
+    /**
+     * Get a content type from a file extension.
+     *
+     * @param imageFormat file extension
+     * @return content type
+     */
+    public static String getContentType(final String imageFormat) {
+<span class="fc bfc" id="L116" title="All 2 branches covered.">        if (imageFormat == null) {</span>
+<span class="fc" id="L117">            return null;</span>
+        }
+<span class="fc" id="L119">        return CONTENT_TYPE_MAP.get(imageFormat);</span>
+    }
+
+    /**
+     * Return an image as a byte array.
+     * @param filePath file name
+     * @return byte array
+     * @throws IOException file errors
+     */
+    static byte[] getBytesFromFile(final String filePath) throws IOException {
+        byte[] imageBuffer;
+<span class="fc" id="L130">        try (FileInputStream fis = new FileInputStream(filePath)) {</span>
+<span class="fc" id="L131">            imageBuffer = getBytesFromFileInputStream(fis);</span>
+        }
+<span class="fc" id="L133">        return imageBuffer;</span>
+    }
+
+    /**
+     * Return an image as a byte array from a file input stream.
+     * @param fis file input stream
+     * @return byte array
+     * @throws IOException file errors
+     */
+    static byte[] getBytesFromFileInputStream(
+        final FileInputStream fis
+    ) throws IOException {
+<span class="fc" id="L145">        int size = fis.available();</span>
+<span class="fc" id="L146">        byte[] imageBuffer = new byte[size];</span>
+<span class="fc" id="L147">        int bytesRead = fis.read(imageBuffer);</span>
+<span class="fc bfc" id="L148" title="All 2 branches covered.">        if (size != bytesRead) {</span>
+<span class="fc" id="L149">            throw new IOException(</span>
+                &quot;Expected &quot; + size + &quot; bytes, read &quot; + bytesRead
+            );
+        }
+<span class="fc" id="L153">        return imageBuffer;</span>
+    }
+
+    /**
+     * Return an image as a bitmap.
+     * @param response response
+     * @param filePath file name
+     * @throws IOException file errors
+     */
+    static void returnImageAsBitmap(
+        @NotNull final HttpServletResponse response,
+        @NotNull final String filePath
+    ) throws IOException {
+        // get the file extension, lookup &amp; set content type
+<span class="fc" id="L167">        String ext = getExtension(filePath);</span>
+<span class="fc" id="L168">        String contentType = getContentType(ext);</span>
+<span class="fc bfc" id="L169" title="All 2 branches covered.">        if (contentType == null) {</span>
+<span class="fc" id="L170">            response.sendError(HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE);</span>
+<span class="fc" id="L171">            throw new IOException(&quot;Unsupported file type: &quot; + ext);</span>
+        }
+<span class="fc" id="L173">        response.setContentType(contentType);</span>
+
+        // read-in image file
+<span class="fc" id="L176">        byte[] imageBuffer = getBytesFromFile(filePath);</span>
+
+<span class="fc" id="L178">        try (OutputStream outputStream = response.getOutputStream()) {</span>
+<span class="fc" id="L179">            outputStream.write(imageBuffer);</span>
+<span class="fc" id="L180">            outputStream.flush();</span>
+        }
+<span class="fc" id="L182">    }</span>
+
+    /**
+     * Return a wall image as a bitmap.
+     * @param response response
+     * @param fileName file name
+     * @throws IOException file errors
+     */
+    public static void returnWallImageAsBitmap(
+        @NotNull final HttpServletResponse response,
+        @NotNull final String fileName
+    ) throws IOException {
+<span class="fc" id="L194">        returnImageAsBitmap(</span>
+            response,
+            ServletUtils.wallImagePath + fileName
+        );
+<span class="fc" id="L198">    }</span>
+
+    /**
+     * Return a route image as a bitmap.
+     * @param response response
+     * @param fileName file name
+     * @throws IOException file errors
+     */
+    public static void returnRouteImageAsBitmap(
+        final HttpServletResponse response, final String fileName
+    ) throws IOException {
+<span class="fc" id="L209">        returnImageAsBitmap(</span>
+            response,
+            ServletUtils.routeImagePath + fileName
+        );
+<span class="fc" id="L213">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.9.202303310957</span></div></body></html>
